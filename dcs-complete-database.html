@@ -78,6 +78,7 @@
         .unit-stat-label { font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
         .unit-stat-value { font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; color: var(--text-primary); }
         .unit-footer { display: none; }
+        .country-badge { background: var(--bg-primary); border: 1px solid var(--text-secondary); border-radius: 3px; padding: 0.15rem 0.4rem; font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; color: var(--text-secondary); margin-left: 0.5rem; }
         .rwr-symbol { background: var(--bg-primary); border: 1px solid var(--accent-green); border-radius: 3px; padding: 0.15rem 0.4rem; font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; color: var(--accent-green); text-shadow: 0 0 8px rgba(0, 255, 136, 0.5); }
         .harm-code { background: var(--bg-primary); border: 1px solid var(--accent-orange); border-radius: 3px; padding: 0.15rem 0.4rem; font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; color: var(--accent-orange); }
         .countermeasure { padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; }
@@ -165,7 +166,6 @@
                 <div class="filter-group"><label class="filter-label">Cerca</label><input type="text" class="filter-input" id="search-input" placeholder="Nome, NATO, RWR..."></div>
                 <div class="filter-group"><label class="filter-label">Contromisura</label><select class="filter-select" id="filter-cm"><option value="">Tutte</option><option value="CH">CHAFF</option><option value="FL">FLARE</option><option value="EV">EVADE</option></select></div>
                 <div class="filter-group"><label class="filter-label">Guida</label><select class="filter-select" id="filter-guidance"><option value="">Tutte</option><option value="RADAR">Radar</option><option value="OPTICAL">Ottico</option><option value="IR">IR</option></select></div>
-                <div class="filter-group"><label class="filter-label">Range Min (NM)</label><input type="number" class="filter-input" id="filter-range" placeholder="es. 10"></div>
             </div>
         </section>
         <div class="category-tabs" id="category-tabs">
@@ -225,7 +225,6 @@
             document.getElementById('search-input').addEventListener('input', doFilter);
             document.getElementById('filter-cm').addEventListener('change', doFilter);
             document.getElementById('filter-guidance').addEventListener('change', doFilter);
-            document.getElementById('filter-range').addEventListener('input', doFilter);
             document.getElementById('modal-close').addEventListener('click', () => modal.classList.remove('active'));
             modal.addEventListener('click', e => { if(e.target === modal) modal.classList.remove('active'); });
             document.addEventListener('keydown', e => { if(e.key === 'Escape') modal.classList.remove('active'); });
@@ -235,13 +234,11 @@
             const s = document.getElementById('search-input').value.toLowerCase();
             const cm = document.getElementById('filter-cm').value;
             const g = document.getElementById('filter-guidance').value;
-            const r = parseFloat(document.getElementById('filter-range').value) || 0;
             filtered = db.filter(u => {
                 if(currentCategory !== 'all' && u.category !== currentCategory) return false;
                 if(s && !u.name.toLowerCase().includes(s) && !(u.natoDesignation && u.natoDesignation.toLowerCase().includes(s)) && !(u.rwrSymbol && u.rwrSymbol.toLowerCase() === s) && !(u.harmCode && u.harmCode.includes(s)) && !(u.alias && u.alias.toLowerCase().includes(s))) return false;
                 if(cm && u.countermeasure !== cm) return false;
                 if(g && u.guidance !== g) return false;
-                if(r > 0 && (u.rangeNM || 0) < r) return false;
                 return true;
             });
             document.getElementById('visible-units').textContent = filtered.length;
@@ -274,7 +271,7 @@
                     </div>
                     <div class="unit-header">
                         <div>
-                            <div class="unit-name">${u.name}</div>
+                            <div class="unit-name">${u.name}${u.country ? `<span class="country-badge">${u.country}</span>` : ''}</div>
                             ${u.natoDesignation ? `<div class="unit-designation">${u.natoDesignation}</div>` : ''}
                             ${u.alias ? `<div class="unit-designation">"${u.alias}"</div>` : ''}
                         </div>
@@ -282,8 +279,8 @@
                     </div>
                     <div class="unit-body">
                         <div class="unit-stats">
-                            <div class="unit-stat"><span class="unit-stat-label">Range</span><span class="unit-stat-value">${u.rangeNM ? u.rangeNM+' NM' : u.rangeKM ? u.rangeKM+' km' : '-'}</span></div>
-                            <div class="unit-stat"><span class="unit-stat-label">Alt</span><span class="unit-stat-value">${u.altKFt ? u.altKFt+'k ft' : u.altKM ? u.altKM+' km' : '-'}</span></div>
+                            <div class="unit-stat"><span class="unit-stat-label">RADAR (KM)</span><span class="unit-stat-value">${u['radar-rangeKM'] || '-'}</span></div>
+                            <div class="unit-stat"><span class="unit-stat-label">RANGE (KM)</span><span class="unit-stat-value">${u['gittata-maxKM'] ? u['gittata-maxKM']+' km' : '-'}</span></div>
                             <div class="unit-stat"><span class="unit-stat-label">RWR</span>${u.rwrSymbol && u.rwrSymbol !== '-' ? `<span class="rwr-symbol">${u.rwrSymbol}</span>` : '<span class="unit-stat-value">-</span>'}</div>
                             <div class="unit-stat"><span class="unit-stat-label">HARM</span>${u.harmCode && u.harmCode !== '-' ? `<span class="harm-code">${u.harmCode}</span>` : '<span class="unit-stat-value">-</span>'}</div>
                         </div>
@@ -308,7 +305,7 @@
             document.getElementById('modal-image').innerHTML = `<img src="${getImagePath(u)}" alt="${u.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="unit-placeholder" style="display:none;width:60%;height:60%;"><span class="placeholder-text">${u.name}</span></div>`;
             document.getElementById('modal-title').textContent = u.name;
             document.getElementById('modal-subtitle').textContent = u.natoDesignation || u.alias || '';
-            let h = `<div class="modal-section"><h3 class="modal-section-title">📋 Descrizione</h3><p class="modal-description">${u.description||'-'}</p>${u.history?`<div class="radar-info"><div class="radar-info-title">📜 Storia</div><div class="radar-info-value">${u.history}</div></div>`:''}${u.technicalNotes?`<div class="radar-info"><div class="radar-info-title">⚙️ Note Tecniche</div><div class="radar-info-value">${u.technicalNotes}</div></div>`:''}</div><div class="modal-section"><h3 class="modal-section-title">📊 Specifiche</h3><div class="modal-stats-grid"><div class="modal-stat"><div class="modal-stat-label">Range</div><div class="modal-stat-value">${u.rangeNM?u.rangeNM+' NM':u.rangeKM?u.rangeKM+' km':'-'}</div></div><div class="modal-stat"><div class="modal-stat-label">Alt Max</div><div class="modal-stat-value">${u.altKFt?u.altKFt+'k ft':u.altKM?u.altKM+' km':'-'}</div></div>${u.acquireTime?`<div class="modal-stat"><div class="modal-stat-label">Acquisizione</div><div class="modal-stat-value">${u.acquireTime}s</div></div>`:''}${u.guidance?`<div class="modal-stat"><div class="modal-stat-label">Guida</div><div class="modal-stat-value">${u.guidance}</div></div>`:''}${u.role?`<div class="modal-stat"><div class="modal-stat-label">Ruolo</div><div class="modal-stat-value">${u.role}</div></div>`:''}${u.shipType?`<div class="modal-stat"><div class="modal-stat-label">Tipo</div><div class="modal-stat-value">${u.shipType}</div></div>`:''}</div></div><div class="modal-section"><h3 class="modal-section-title">🎯 Identificazione</h3><div class="modal-stats-grid"><div class="modal-stat"><div class="modal-stat-label">RWR</div><div class="modal-stat-value">${u.rwrSymbol&&u.rwrSymbol!=='-'?`<span class="rwr-symbol">${u.rwrSymbol}</span>`:'-'}</div></div><div class="modal-stat"><div class="modal-stat-label">HARM</div><div class="modal-stat-value">${u.harmCode&&u.harmCode!=='-'?`<span class="harm-code">${u.harmCode}</span>`:'-'}</div></div>${u.countermeasure?`<div class="modal-stat"><div class="modal-stat-label">Contromisura</div><div class="modal-stat-value"><span class="countermeasure cm-${u.countermeasure.toLowerCase()}">${u.countermeasure}</span></div></div>`:''}</div></div>`;
+            let h = `<div class="modal-section"><h3 class="modal-section-title">📋 Descrizione</h3><p class="modal-description">${u.description||'-'}</p>${u.history?`<div class="radar-info"><div class="radar-info-title">📜 Storia</div><div class="radar-info-value">${u.history}</div></div>`:''}${u.technicalNotes?`<div class="radar-info"><div class="radar-info-title">⚙️ Note Tecniche</div><div class="radar-info-value">${u.technicalNotes}</div></div>`:''}</div><div class="modal-section"><h3 class="modal-section-title">📊 Specifiche</h3><div class="modal-stats-grid">${u.country?`<div class="modal-stat"><div class="modal-stat-label">Paese</div><div class="modal-stat-value">${u.country}</div></div>`:''}<div class="modal-stat"><div class="modal-stat-label">RADAR (KM)</div><div class="modal-stat-value">${u['radar-rangeKM']||'-'}</div></div><div class="modal-stat"><div class="modal-stat-label">RANGE (KM)</div><div class="modal-stat-value">${u['track-rangeKM']?u['track-rangeKM']+' km':'-'}</div></div><div class="modal-stat"><div class="modal-stat-label">Max</div><div class="modal-stat-value">${u['gittata-maxKM']?u['gittata-maxKM']+' km':'-'}</div></div><div class="modal-stat"><div class="modal-stat-label">Min</div><div class="modal-stat-value">${u['gittata-minKM']?u['gittata-minKM']+' km':'-'}</div></div><div class="modal-stat"><div class="modal-stat-label">Alt</div><div class="modal-stat-value">${u['gittata-altKM']?u['gittata-altKM']+' km':'-'}</div></div>${u.acquireTime?`<div class="modal-stat"><div class="modal-stat-label">Acquisizione</div><div class="modal-stat-value">${u.acquireTime}s</div></div>`:''}${u.guidance?`<div class="modal-stat"><div class="modal-stat-label">Guida</div><div class="modal-stat-value">${u.guidance}</div></div>`:''}${u.role?`<div class="modal-stat"><div class="modal-stat-label">Ruolo</div><div class="modal-stat-value">${u.role}</div></div>`:''}${u.shipType?`<div class="modal-stat"><div class="modal-stat-label">Tipo</div><div class="modal-stat-value">${u.shipType}</div></div>`:''}</div></div><div class="modal-section"><h3 class="modal-section-title">🎯 Identificazione</h3><div class="modal-stats-grid"><div class="modal-stat"><div class="modal-stat-label">RWR</div><div class="modal-stat-value">${u.rwrSymbol&&u.rwrSymbol!=='-'?`<span class="rwr-symbol">${u.rwrSymbol}</span>`:'-'}</div></div><div class="modal-stat"><div class="modal-stat-label">HARM</div><div class="modal-stat-value">${u.harmCode&&u.harmCode!=='-'?`<span class="harm-code">${u.harmCode}</span>`:'-'}</div></div>${u.countermeasure?`<div class="modal-stat"><div class="modal-stat-label">Contromisura</div><div class="modal-stat-value"><span class="countermeasure cm-${u.countermeasure.toLowerCase()}">${u.countermeasure}</span></div></div>`:''}</div></div>`;
             if(u.trackRadar||u.searchRadar||u.associatedSam) h+=`<div class="modal-section"><h3 class="modal-section-title">📡 Radar</h3><div class="modal-stats-grid">${u.trackRadar?`<div class="modal-stat"><div class="modal-stat-label">Track</div><div class="modal-stat-value" style="font-size:0.75rem;">${u.trackRadar}</div></div>`:''}${u.searchRadar?`<div class="modal-stat"><div class="modal-stat-label">Search</div><div class="modal-stat-value" style="font-size:0.75rem;">${u.searchRadar}</div></div>`:''}${u.associatedSam?`<div class="modal-stat"><div class="modal-stat-label">SAM</div><div class="modal-stat-value">${u.associatedSam}</div></div>`:''}</div></div>`;
             if(u.samSystems||u.ciws) h+=`<div class="modal-section"><h3 class="modal-section-title">🚀 Armamento</h3><div class="modal-stats-grid">${u.samSystems?`<div class="modal-stat"><div class="modal-stat-label">SAM</div><div class="modal-stat-value" style="font-size:0.75rem;">${u.samSystems}</div></div>`:''}${u.ciws?`<div class="modal-stat"><div class="modal-stat-label">CIWS</div><div class="modal-stat-value">${u.ciws}</div></div>`:''}</div></div>`;
             if(u.ammo) h+=`<div class="modal-section"><h3 class="modal-section-title">💥 Munizioni</h3><div class="modal-stat" style="background:var(--bg-tertiary);padding:0.6rem;border-radius:5px;"><div class="modal-stat-value">${u.ammo}</div></div></div>`;
